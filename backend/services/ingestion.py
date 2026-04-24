@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 from readability import Document as ReadabilityDoc
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from langchain_community.document_loaders import Docx2txtLoader, TextLoader
 from langchain_chroma import Chroma
 from langchain_community.embeddings import DashScopeEmbeddings
 
@@ -58,15 +58,35 @@ async def _extract_text(doc: Document) -> str:
         return await _fetch_url(doc.source_url)
     path = doc.storage_path
     if doc.doc_type == "pdf":
-        loader = PyPDFLoader(path)
-        pages = loader.load()
-        return "\n".join(p.page_content for p in pages)
+        return _extract_pdf(path)
     if doc.doc_type == "docx":
         loader = Docx2txtLoader(path)
         return loader.load()[0].page_content
     # txt / md
     loader = TextLoader(path, encoding="utf-8")
     return loader.load()[0].page_content
+
+
+def _extract_pdf(path: str) -> str:
+    import fitz  # pymupdf
+    parts = []
+    with fitz.open(path) as pdf:
+        for page in pdf:
+            # 普通文本块，保留换行结构
+            parts.append(page.get_text("text"))
+            # 将页内表格转为 Markdown
+            for table in page.find_tables():
+                rows = table.extract()
+                if not rows:
+                    continue
+                header = "| " + " | ".join(str(c or "") for c in rows[0]) + " |"
+                sep = "| " + " | ".join("---" for _ in rows[0]) + " |"
+                body = "\n".join(
+                    "| " + " | ".join(str(c or "") for c in row) + " |"
+                    for row in rows[1:]
+                )
+                parts.append(f"\n{header}\n{sep}\n{body}\n")
+    return "\n".join(parts)
 
 
 async def _fetch_url(url: str) -> str:

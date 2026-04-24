@@ -6,7 +6,16 @@ import type { Citation } from '../../api/client'
 
 function SendIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
@@ -14,7 +23,13 @@ function SendIcon() {
 }
 
 export default function ChatPanel({ notebookId }: { notebookId: number }) {
-  const { messages, streamingText, selectedDocIds, appendStreamChunk, commitStreamMessage } = useAppStore()
+  const {
+    messages,
+    streamingText,
+    selectedDocIds,
+    appendStreamChunk,
+    commitStreamMessage,
+  } = useAppStore()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -73,26 +88,52 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="chat-messages">
         {messages.length === 0 && !streamingText && (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '60px 0', fontSize: 14 }}>
+          <div
+            style={{
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              padding: '60px 0',
+              fontSize: 14,
+            }}
+          >
             向 AI 提问，探索你的文档
           </div>
         )}
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} role={msg.role} content={msg.content} citations={msg.citations} />
+          <MessageBubble
+            key={msg.id}
+            role={msg.role}
+            content={msg.content}
+            citations={msg.citations}
+          />
         ))}
         {streamingText && (
-          <MessageBubble role="assistant" content={streamingText} citations={null} streaming />
+          <MessageBubble
+            role="assistant"
+            content={streamingText}
+            citations={null}
+            streaming
+          />
         )}
         {loading && !streamingText && (
           <div className="chat-row assistant">
-            <div className="chat-bubble assistant" style={{ padding: '12px 16px' }}>
+            <div
+              className="chat-bubble assistant"
+              style={{ padding: '12px 16px' }}
+            >
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 {[0, 0.15, 0.3].map((d, i) => (
-                  <span key={i} style={{
-                    width: 7, height: 7, borderRadius: '50%', background: 'var(--text-muted)',
-                    animation: `blink 1.2s ${d}s ease-in-out infinite`,
-                    display: 'inline-block',
-                  }} />
+                  <span
+                    key={i}
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: 'var(--text-muted)',
+                      animation: `blink 1.2s ${d}s ease-in-out infinite`,
+                      display: 'inline-block',
+                    }}
+                  />
                 ))}
               </div>
             </div>
@@ -103,8 +144,18 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
 
       <div className="chat-inputbar">
         {messages.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 6 }}>
-            <button className="btn btn-ghost btn-sm" style={{ fontSize: 12, color: 'var(--text-muted)' }} onClick={handleClear}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              paddingBottom: 6,
+            }}
+          >
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 12, color: 'var(--text-muted)' }}
+              onClick={handleClear}
+            >
               清空记录
             </button>
           </div>
@@ -116,7 +167,12 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
             placeholder="输入问题，Shift+Enter 换行"
             value={input}
             onChange={handleTextareaChange}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSend()
+              }
+            }}
             rows={1}
             style={{ flex: 1, minHeight: 40, maxHeight: 140 }}
           />
@@ -134,7 +190,13 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
   )
 }
 
-function CitationPopup({ citation, index, anchorRect, onMouseEnter, onMouseLeave }: {
+function CitationPopup({
+  citation,
+  index,
+  anchorRect,
+  onMouseEnter,
+  onMouseLeave,
+}: {
   citation: Citation
   index: number
   anchorRect: DOMRect
@@ -156,11 +218,16 @@ function CitationPopup({ citation, index, anchorRect, onMouseEnter, onMouseLeave
   }
 
   return createPortal(
-    <div className="citation-popup" style={style} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div
+      className="citation-popup"
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <div className="citation-popup-header">
         <span className="citation-tag-badge">{index + 1}</span>
         <span className="citation-popup-docname">{citation.doc_name}</span>
-        <span className="citation-popup-score">相关度 {Math.round(citation.score * 100)}%</span>
+        {/* <span className="citation-popup-score">相关度 {Math.round(citation.score * 100)}%</span> */}
       </div>
       <div className="citation-popup-text">{citation.text}</div>
     </div>,
@@ -168,7 +235,13 @@ function CitationPopup({ citation, index, anchorRect, onMouseEnter, onMouseLeave
   )
 }
 
-function CitationTag({ citation, index }: { citation: Citation; index: number }) {
+function CitationTag({
+  citation,
+  index,
+}: {
+  citation: Citation
+  index: number
+}) {
   const [show, setShow] = useState(false)
   const [rect, setRect] = useState<DOMRect | null>(null)
   const tagRef = useRef<HTMLSpanElement>(null)
@@ -210,7 +283,10 @@ function CitationTag({ citation, index }: { citation: Citation; index: number })
   )
 }
 
-function parseContent(content: string, citations: Citation[]): React.ReactNode[] {
+function parseContent(
+  content: string,
+  citations: Citation[],
+): React.ReactNode[] {
   if (citations.length === 0) return [content]
   const parts: React.ReactNode[] = []
   const regex = /\[(\d+)\]/g
@@ -224,7 +300,9 @@ function parseContent(content: string, citations: Citation[]): React.ReactNode[]
     if (!citation) continue
     hasAny = true
     if (match.index > last) parts.push(content.slice(last, match.index))
-    parts.push(<CitationTag key={match.index} citation={citation} index={num - 1} />)
+    parts.push(
+      <CitationTag key={match.index} citation={citation} index={num - 1} />,
+    )
     last = match.index + match[0].length
   }
 
@@ -233,7 +311,12 @@ function parseContent(content: string, citations: Citation[]): React.ReactNode[]
   return parts
 }
 
-function MessageBubble({ role, content, citations, streaming }: {
+function MessageBubble({
+  role,
+  content,
+  citations,
+  streaming,
+}: {
   role: 'user' | 'assistant'
   content: string
   citations: string | null

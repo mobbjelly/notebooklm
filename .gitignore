@@ -12,6 +12,9 @@ backend/.env
 # 运行时数据
 backend/data/
 
+# 评测运行产物
+backend/eval/results*.json
+
 # 前端
 frontend/node_modules/
 frontend/dist/
