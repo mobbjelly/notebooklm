@@ -3,10 +3,11 @@ import { getClientId } from '../store/clientId'
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const isFormData = init.body instanceof FormData
   const resp = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'X-Client-ID': getClientId(),
       ...init.headers,
     },
@@ -39,7 +40,6 @@ export const api = {
     return request<Document>(`/notebooks/${notebookId}/documents/upload`, {
       method: 'POST',
       body: form,
-      headers: { 'X-Client-ID': getClientId() },  // 不带 Content-Type，让浏览器设 multipart
     })
   },
   addUrl: (notebookId: number, url: string, name?: string) =>

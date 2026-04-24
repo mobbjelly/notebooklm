@@ -53,18 +53,18 @@ export default function AnalysisPanel({ notebookId }: { notebookId: number }) {
       {!loading && result && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title="共同主题">
-            {result.common_themes.map((t, i) => <Tag key={i} color="blue" style={{ marginBottom: 6 }}>{t}</Tag>)}
+            {(result.common_themes ?? []).map((t, i) => <Tag key={i} color="blue" style={{ marginBottom: 6 }}>{t}</Tag>)}
           </Card>
           <Card title="主要差异">
             <List
-              dataSource={result.differences}
+              dataSource={result.differences ?? []}
               renderItem={(item) => <List.Item><Text>• {item}</Text></List.Item>}
               size="small"
             />
           </Card>
           <Card title="知识盲点">
             <List
-              dataSource={result.blind_spots}
+              dataSource={result.blind_spots ?? []}
               renderItem={(item) => <List.Item><Text type="warning">• {item}</Text></List.Item>}
               size="small"
             />

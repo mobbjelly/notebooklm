@@ -6,4 +6,10 @@ async def analyze_notebook(docs: list[Document]) -> dict:
     summaries = [d.summary_text for d in docs if d.summary_text]
     if not summaries:
         return {"error": "No summaries available yet, please wait for document processing"}
-    return await generate_notebook_analysis(summaries)
+    result = await generate_notebook_analysis(summaries)
+    return {
+        "common_themes": result.get("common_themes") or [],
+        "differences": result.get("differences") or [],
+        "blind_spots": result.get("blind_spots") or [],
+        "synthesis": result.get("synthesis") or "",
+    }

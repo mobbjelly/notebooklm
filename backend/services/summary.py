@@ -3,7 +3,7 @@
 """
 import json
 from langchain_community.chat_models.tongyi import ChatTongyi
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.config import settings
 from models.document import Document
