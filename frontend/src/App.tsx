@@ -1,6 +1,4 @@
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
 import HomePage from './pages/HomePage'
 import NotebookPage from './pages/NotebookPage'
 
@@ -25,16 +23,14 @@ function AppHeader() {
 
 export default function App() {
   return (
-    <ConfigProvider locale={zhCN}>
-      <BrowserRouter>
-        <div className="app-root">
-          <AppHeader />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/notebook/:id" element={<NotebookPage />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
-    </ConfigProvider>
+    <BrowserRouter>
+      <div className="app-root">
+        <AppHeader />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/notebook/:id" element={<NotebookPage />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   )
 }

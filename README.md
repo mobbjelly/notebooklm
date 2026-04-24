@@ -18,7 +18,7 @@
 |----|------|
 | 后端 | Python · FastAPI · SQLAlchemy · SQLite |
 | AI | LangChain-core 1.x · ChromaDB · 通义千问 · DashScope Embeddings |
-| 前端 | React 18 · TypeScript · Vite · Ant Design 5 · Zustand |
+| 前端 | React 18 · TypeScript · Vite · Zustand |
 
 ## 目录结构
 
