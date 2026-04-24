@@ -338,6 +338,24 @@ textarea.input { resize: none; line-height: 1.5; }
   transition: background 0.12s;
 }
 .source-item:hover { background: var(--surface-hover); }
+.source-item-select-all { cursor: pointer; padding: 6px 8px; }
+
+.doc-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.doc-checkbox:hover { border-color: var(--accent); }
+.doc-checkbox.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+.doc-checkbox.disabled { opacity: 0.35; cursor: not-allowed; }
 .source-item-icon {
   width: 32px;
   height: 32px;

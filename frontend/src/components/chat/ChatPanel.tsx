@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { chatStream } from '../../api/client'
+import { chatStream, api } from '../../api/client'
 import { useAppStore } from '../../store/useAppStore'
 import type { Citation } from '../../api/client'
 
@@ -13,9 +13,8 @@ function SendIcon() {
 }
 
 export default function ChatPanel({ notebookId }: { notebookId: number }) {
-  const { messages, documents, streamingText, appendStreamChunk, commitStreamMessage } = useAppStore()
+  const { messages, streamingText, selectedDocIds, appendStreamChunk, commitStreamMessage } = useAppStore()
   const [input, setInput] = useState('')
-  const [selectedDoc, setSelectedDoc] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -40,11 +39,11 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
     }
     useAppStore.getState().setMessages([...messages, userMsg])
 
-    const docId = selectedDoc ? Number(selectedDoc) : null
+    const docIds = selectedDocIds.size > 0 ? Array.from(selectedDocIds) : null
     chatStream(
       notebookId,
       q,
-      docId,
+      docIds,
       (chunk) => appendStreamChunk(chunk),
       (citations) => {
         commitStreamMessage(citations.length ? JSON.stringify(citations) : null)
@@ -57,13 +56,17 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
     )
   }
 
+  const handleClear = async () => {
+    if (!window.confirm('确定清空所有聊天记录？')) return
+    await api.clearChatHistory(notebookId)
+    useAppStore.getState().setMessages([])
+  }
+
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
     e.target.style.height = 'auto'
     e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
   }
-
-  const readyDocs = documents.filter((d) => d.status === 'ready')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -98,18 +101,11 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
       </div>
 
       <div className="chat-inputbar">
-        {readyDocs.length > 0 && (
-          <div>
-            <select
-              className="chat-scope-select"
-              value={selectedDoc}
-              onChange={(e) => setSelectedDoc(e.target.value)}
-            >
-              <option value="">全部文档</option>
-              {readyDocs.map((d) => (
-                <option key={d.id} value={String(d.id)}>{d.name}</option>
-              ))}
-            </select>
+        {messages.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 6 }}>
+            <button className="btn btn-ghost btn-sm" style={{ fontSize: 12, color: 'var(--text-muted)' }} onClick={handleClear}>
+              清空记录
+            </button>
           </div>
         )}
         <div className="chat-inputbar-row">

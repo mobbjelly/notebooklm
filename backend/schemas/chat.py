@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ChatRequest(BaseModel):
     question: str
-    doc_id: int | None = None   # None 表示查全部文档
+    doc_ids: list[int] | None = None   # None 或空列表表示查全部文档
 
 
 class ChatMessageOut(BaseModel):

@@ -2,7 +2,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from core.database import get_db
 from core.deps import get_client_id
@@ -44,7 +44,7 @@ async def chat(
     async def event_stream():
         full_answer = ""
         citations = []
-        async for chunk, chunk_citations in rag_stream(body.question, notebook_id, body.doc_id):
+        async for chunk, chunk_citations in rag_stream(body.question, notebook_id, body.doc_ids):
             full_answer += chunk
             if chunk_citations:
                 citations = chunk_citations
@@ -62,6 +62,18 @@ async def chat(
         yield f"data: {json.dumps({'done': True, 'citations': citations}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.delete("")
+async def clear_history(
+    notebook_id: int,
+    client_id: str = Depends(get_client_id),
+    db: AsyncSession = Depends(get_db),
+):
+    await _assert_owns(notebook_id, client_id, db)
+    await db.execute(delete(ChatMessage).where(ChatMessage.notebook_id == notebook_id))
+    await db.commit()
+    return {"ok": True}
 
 
 async def _assert_owns(notebook_id: int, client_id: str, db: AsyncSession):

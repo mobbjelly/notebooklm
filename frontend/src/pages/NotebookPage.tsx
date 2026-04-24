@@ -16,6 +16,9 @@ export default function NotebookPage() {
     const nb = notebooks.find((n) => n.id === notebookId)
     if (nb) setActiveNotebook(nb)
 
+    setDocuments([])
+    setMessages([])
+
     Promise.all([
       api.getDocuments(notebookId).then(setDocuments),
       api.getChatHistory(notebookId).then(setMessages),

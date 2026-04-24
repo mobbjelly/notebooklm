@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { api } from '../../api/client'
 import { useAppStore } from '../../store/useAppStore'
 
@@ -29,12 +29,24 @@ function TrashIcon() {
 }
 
 export default function DocumentPanel({ notebookId }: { notebookId: number }) {
-  const { documents, setDocuments } = useAppStore()
+  const { documents, setDocuments, selectedDocIds, toggleDocSelected, setAllDocsSelected, clearDocSelection } = useAppStore()
   const [urlInput, setUrlInput] = useState('')
   const [urlLoading, setUrlLoading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const hasPending = documents.some(d => d.status === 'pending' || d.status === 'processing')
+    if (!hasPending) return
+    const timer = setInterval(async () => {
+      const fresh = await api.getDocuments(notebookId)
+      setDocuments(fresh)
+      const stillPending = fresh.some(d => d.status === 'pending' || d.status === 'processing')
+      if (!stillPending) clearInterval(timer)
+    }, 2000)
+    return () => clearInterval(timer)
+  }, [documents.map(d => d.status).join(',')])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -75,9 +87,13 @@ export default function DocumentPanel({ notebookId }: { notebookId: number }) {
   }
 
   const handleDelete = async (docId: number) => {
-    await api.deleteDocument(notebookId, docId)
-    setDocuments(documents.filter((d) => d.id !== docId))
-    showToast('已删除')
+    try {
+      await api.deleteDocument(notebookId, docId)
+      setDocuments(useAppStore.getState().documents.filter((d) => d.id !== docId))
+      showToast('已删除')
+    } catch (e: any) {
+      showToast(e.message)
+    }
   }
 
   return (
@@ -137,8 +153,22 @@ export default function DocumentPanel({ notebookId }: { notebookId: number }) {
         {documents.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '24px 0' }}>暂无来源</div>
         )}
+        {documents.length > 0 && (() => {
+          const readyIds = documents.filter(d => d.status === 'ready').map(d => d.id)
+          const allSelected = readyIds.length > 0 && readyIds.every(id => selectedDocIds.has(id))
+          return (
+            <div className="source-item source-item-select-all" onClick={() => allSelected ? clearDocSelection() : setAllDocsSelected(readyIds)}>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1 }}>选择所有来源</span>
+              <div className={`doc-checkbox ${allSelected ? 'checked' : ''}`}>
+                {allSelected && <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1.5 6 4.5 9 10.5 3" /></svg>}
+              </div>
+            </div>
+          )
+        })()}
         {documents.map((doc) => {
           const status = STATUS_TAG[doc.status] ?? STATUS_TAG.pending
+          const isReady = doc.status === 'ready'
+          const checked = selectedDocIds.has(doc.id)
           return (
             <div key={doc.id} className="source-item">
               <div className="source-item-icon"><FileIcon /></div>
@@ -154,6 +184,12 @@ export default function DocumentPanel({ notebookId }: { notebookId: number }) {
               >
                 <TrashIcon />
               </button>
+              <div
+                className={`doc-checkbox ${checked ? 'checked' : ''} ${!isReady ? 'disabled' : ''}`}
+                onClick={() => isReady && toggleDocSelected(doc.id)}
+              >
+                {checked && <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1.5 6 4.5 9 10.5 3" /></svg>}
+              </div>
             </div>
           )
         })}

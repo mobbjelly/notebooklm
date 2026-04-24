@@ -16,6 +16,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? 'Request failed')
   }
+  if (resp.status === 204 || resp.headers.get('content-length') === '0') {
+    return undefined as T
+  }
   return resp.json()
 }
 
@@ -58,6 +61,8 @@ export const api = {
   // Chat history
   getChatHistory: (notebookId: number) =>
     request<ChatMessage[]>(`/notebooks/${notebookId}/chat`),
+  clearChatHistory: (notebookId: number) =>
+    request<void>(`/notebooks/${notebookId}/chat`, { method: 'DELETE' }),
 
   // Analysis
   getAnalysis: (notebookId: number) =>
@@ -70,7 +75,7 @@ export const api = {
 export function chatStream(
   notebookId: number,
   question: string,
-  docId: number | null,
+  docIds: number[] | null,
   onChunk: (text: string) => void,
   onDone: (citations: Citation[]) => void,
   onError: (err: Error) => void,
@@ -81,7 +86,7 @@ export function chatStream(
       'Content-Type': 'application/json',
       'X-Client-ID': getClientId(),
     },
-    body: JSON.stringify({ question, doc_id: docId }),
+    body: JSON.stringify({ question, doc_ids: docIds }),
   }).then(async (resp) => {
     if (!resp.ok) throw new Error('Chat request failed')
     const reader = resp.body!.getReader()
