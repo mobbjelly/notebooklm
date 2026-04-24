@@ -41,7 +41,14 @@ export default function DocumentPanel({ notebookId }: { notebookId: number }) {
     if (!hasPending) return
     const timer = setInterval(async () => {
       const fresh = await api.getDocuments(notebookId)
+      const prev = useAppStore.getState().documents
+      const prevReadyIds = new Set(prev.filter(d => d.status === 'ready').map(d => d.id))
+      const newlyReady = fresh.filter(d => d.status === 'ready' && !prevReadyIds.has(d.id)).map(d => d.id)
       setDocuments(fresh)
+      if (newlyReady.length > 0) {
+        const current = useAppStore.getState().selectedDocIds
+        setAllDocsSelected([...current, ...newlyReady])
+      }
       const stillPending = fresh.some(d => d.status === 'pending' || d.status === 'processing')
       if (!stillPending) clearInterval(timer)
     }, 2000)

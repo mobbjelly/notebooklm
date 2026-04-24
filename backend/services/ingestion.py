@@ -107,3 +107,16 @@ async def _store_vectors(chunks: list[str], doc: Document):
         collection_name=collection_name,
         persist_directory=str(settings.CHROMA_DIR),
     )
+
+
+def delete_document_vectors(doc_id: int, notebook_id: int):
+    collection_name = f"notebook_{notebook_id}"
+    vectorstore = Chroma(
+        collection_name=collection_name,
+        embedding_function=None,
+        persist_directory=str(settings.CHROMA_DIR),
+    )
+    results = vectorstore.get(where={"doc_id": doc_id})
+    ids = results.get("ids", [])
+    if ids:
+        vectorstore.delete(ids=ids)

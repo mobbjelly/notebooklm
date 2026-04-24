@@ -9,7 +9,7 @@ import AnalysisPanel from '../components/notebook/AnalysisPanel'
 export default function NotebookPage() {
   const { id } = useParams<{ id: string }>()
   const notebookId = Number(id)
-  const { setDocuments, setMessages, setActiveNotebook, notebooks } = useAppStore()
+  const { setDocuments, setMessages, setActiveNotebook, setAllDocsSelected, notebooks } = useAppStore()
   const [activeTab, setActiveTab] = useState<'chat' | 'analysis'>('chat')
 
   useEffect(() => {
@@ -20,7 +20,10 @@ export default function NotebookPage() {
     setMessages([])
 
     Promise.all([
-      api.getDocuments(notebookId).then(setDocuments),
+      api.getDocuments(notebookId).then((docs) => {
+        setDocuments(docs)
+        setAllDocsSelected(docs.filter(d => d.status === 'ready').map(d => d.id))
+      }),
       api.getChatHistory(notebookId).then(setMessages),
     ]).catch(console.error)
   }, [notebookId])

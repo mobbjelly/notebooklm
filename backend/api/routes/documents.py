@@ -10,7 +10,7 @@ from core.config import settings
 from models.notebook import Notebook
 from models.document import Document, DocumentStatus
 from schemas.document import DocumentUrlCreate, DocumentNotesUpdate, DocumentOut
-from services.ingestion import ingest_document
+from services.ingestion import ingest_document, delete_document_vectors
 
 router = APIRouter(prefix="/notebooks/{notebook_id}/documents", tags=["documents"])
 
@@ -107,6 +107,7 @@ async def delete_document(
     doc = await _get_doc(doc_id, notebook_id, db)
     if doc.storage_path:
         Path(doc.storage_path).unlink(missing_ok=True)
+    await asyncio.to_thread(delete_document_vectors, doc.id, doc.notebook_id)
     await db.delete(doc)
     await db.commit()
 
