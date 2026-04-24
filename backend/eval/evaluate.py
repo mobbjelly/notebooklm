@@ -1,20 +1,15 @@
 """
 KnowBase RAG 评测脚本
 
-用法：
-    # 在 backend/ 目录下，激活虚拟环境后运行
+直接调用 rag_stream，完全绕开 HTTP 路由层，不写入数据库。
+
+用法（在 backend/ 目录下，激活虚拟环境后运行）：
     python -m eval.evaluate \
         --cases eval/test_cases.json \
         --notebook_id 1 \
-        --base_url http://localhost:8000 \
-        --client_id <your-client-id> \
         [--doc_ids 1 2 3] \
         [--output eval/results.json] \
         [--concurrency 3]
-
-输出：
-    - 终端打印每条用例得分和汇总表
-    - JSON 文件（--output 指定路径）保存完整结果
 """
 import argparse
 import asyncio
@@ -24,44 +19,28 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import httpx
-
-# 将 backend/ 加入 sys.path，使 eval.metrics 可被直接导入
+# backend/ 目录加入 sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from eval.metrics import compute  # noqa: E402
+
+from services.rag import rag_stream  # noqa: E402
+from eval.metrics import compute     # noqa: E402
 
 
-# ── SSE 流式请求，收集完整回答和 citations ────────────────────────────────────
+# ── 直接调用 rag_stream，收集完整回答和 citations ──────────────────────────────
 
 async def call_rag(
-    client: httpx.AsyncClient,
-    base_url: str,
-    client_id: str,
     notebook_id: int,
     question: str,
     doc_ids: Optional[list[int]],
 ) -> tuple[str, list[dict], float]:
-    """
-    返回 (answer_text, citations, latency_seconds)
-    """
-    url = f"{base_url}/api/notebooks/{notebook_id}/chat"
-    payload = {"question": question, "doc_ids": doc_ids}
-    headers = {"X-Client-ID": client_id, "Accept": "text/event-stream"}
-
     answer_parts: list[str] = []
     citations: list[dict] = []
     t0 = time.perf_counter()
 
-    async with client.stream("POST", url, json=payload, headers=headers, timeout=120) as resp:
-        resp.raise_for_status()
-        async for line in resp.aiter_lines():
-            if not line.startswith("data:"):
-                continue
-            data = json.loads(line[5:].strip())
-            if "text" in data:
-                answer_parts.append(data["text"])
-            if data.get("done") and "citations" in data:
-                citations = data["citations"]
+    async for chunk, chunk_citations in rag_stream(question, notebook_id, doc_ids):
+        answer_parts.append(chunk)
+        if chunk_citations:
+            citations = chunk_citations
 
     latency = time.perf_counter() - t0
     return "".join(answer_parts), citations, round(latency, 3)
@@ -71,9 +50,6 @@ async def call_rag(
 
 async def eval_case(
     sem: asyncio.Semaphore,
-    client: httpx.AsyncClient,
-    base_url: str,
-    client_id: str,
     notebook_id: int,
     default_doc_ids: Optional[list[int]],
     case: dict,
@@ -81,10 +57,7 @@ async def eval_case(
     doc_ids = case.get("doc_ids") or default_doc_ids
     async with sem:
         try:
-            answer, citations, latency = await call_rag(
-                client, base_url, client_id, notebook_id,
-                case["question"], doc_ids,
-            )
+            answer, citations, latency = await call_rag(notebook_id, case["question"], doc_ids)
             error = None
         except Exception as e:
             answer, citations, latency, error = "", [], 0.0, str(e)
@@ -124,17 +97,12 @@ def summarize(results: list[dict]) -> dict:
         vals = [r["scores"][key] for r in valid]
         return round(sum(vals) / len(vals), 4) if vals else -1.0
 
-    # 按分类聚合 keyword_recall
     by_cat: dict[str, list[float]] = {}
     for r in valid:
         cat = r["category"]
         kr = r["scores"].get("keyword_recall", -1)
         if kr >= 0:
             by_cat.setdefault(cat, []).append(kr)
-    category_recall = {
-        cat: round(sum(vals) / len(vals), 4)
-        for cat, vals in by_cat.items()
-    }
 
     return {
         "total": len(results),
@@ -148,7 +116,10 @@ def summarize(results: list[dict]) -> dict:
         "faithfulness_rate": pct("faithfulness"),
         "avg_retrieval_top1": avg("retrieval_top1"),
         "avg_retrieval_avg": avg("retrieval_avg"),
-        "keyword_recall_by_category": category_recall,
+        "keyword_recall_by_category": {
+            cat: round(sum(vals) / len(vals), 4)
+            for cat, vals in by_cat.items()
+        },
     }
 
 
@@ -195,11 +166,9 @@ def print_results(results: list[dict], summary: dict):
 # ── 主流程 ────────────────────────────────────────────────────────────────────
 
 async def main():
-    parser = argparse.ArgumentParser(description="KnowBase RAG 评测")
+    parser = argparse.ArgumentParser(description="KnowBase RAG 评测（直接调用，不写库）")
     parser.add_argument("--cases",       default="eval/test_cases.json", help="测试用例 JSON 路径")
     parser.add_argument("--notebook_id", type=int, required=True,        help="目标 Notebook ID")
-    parser.add_argument("--base_url",    default="http://localhost:8000", help="后端服务地址")
-    parser.add_argument("--client_id",   required=True,                  help="X-Client-ID（浏览器 localStorage 中的 UUID）")
     parser.add_argument("--doc_ids",     type=int, nargs="*",            help="限定检索的文档 ID（不填则检索全部）")
     parser.add_argument("--output",      default=None,                   help="结果 JSON 输出路径")
     parser.add_argument("--concurrency", type=int, default=3,            help="并发请求数（默认 3）")
@@ -213,22 +182,18 @@ async def main():
     dataset = json.loads(cases_path.read_text(encoding="utf-8"))
     cases = dataset.get("test_cases", dataset) if isinstance(dataset, dict) else dataset
     print(f"加载测试集：{dataset.get('dataset_name', cases_path.name)}，共 {len(cases)} 条用例")
+    print("（直接调用 rag_stream，不经过 HTTP 层，不写入数据库）\n")
 
     sem = asyncio.Semaphore(args.concurrency)
-    async with httpx.AsyncClient() as client:
-        tasks = [
-            eval_case(sem, client, args.base_url, args.client_id,
-                      args.notebook_id, args.doc_ids, case)
-            for case in cases
-        ]
-        results = await asyncio.gather(*tasks)
+    tasks = [eval_case(sem, args.notebook_id, args.doc_ids, case) for case in cases]
+    results = await asyncio.gather(*tasks)
 
     results = sorted(results, key=lambda r: r["id"])
     summary = summarize(results)
     print_results(results, summary)
 
-    output_path = Path(args.output) if args.output else None
-    if output_path:
+    if args.output:
+        output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             json.dumps({"summary": summary, "results": results}, ensure_ascii=False, indent=2),
