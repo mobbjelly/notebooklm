@@ -50,7 +50,7 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ flex: 1 }}>
+    <div style={{ flex: 1, overflowY: 'auto' }}>
       <div className="home-container">
         <div className="home-header">
           <h1 className="home-title">我的笔记本</h1>

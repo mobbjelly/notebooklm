@@ -167,7 +167,7 @@ textarea.input { resize: none; line-height: 1.5; }
 }
 
 /* ── App global layout ─────────────────────────────── */
-.app-root { display: flex; flex-direction: column; min-height: 100vh; }
+.app-root { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* ── Top navigation bar ────────────────────────────── */
 .app-header {
