@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { chatStream, api } from '../../api/client'
 import { useAppStore } from '../../store/useAppStore'
 import type { Citation } from '../../api/client'
@@ -133,28 +134,119 @@ export default function ChatPanel({ notebookId }: { notebookId: number }) {
   )
 }
 
+function CitationPopup({ citation, index, anchorRect, onMouseEnter, onMouseLeave }: {
+  citation: Citation
+  index: number
+  anchorRect: DOMRect
+  onMouseEnter: () => void
+  onMouseLeave: () => void
+}) {
+  const GAP = 8
+  const POPUP_HEIGHT_ESTIMATE = 120
+  const placeAbove = anchorRect.top >= POPUP_HEIGHT_ESTIMATE + GAP
+
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    left: anchorRect.left + anchorRect.width / 2,
+    transform: 'translateX(-50%)',
+    zIndex: 9999,
+    ...(placeAbove
+      ? { bottom: window.innerHeight - anchorRect.top + GAP }
+      : { top: anchorRect.bottom + GAP }),
+  }
+
+  return createPortal(
+    <div className="citation-popup" style={style} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+      <div className="citation-popup-header">
+        <span className="citation-tag-badge">{index + 1}</span>
+        <span className="citation-popup-docname">{citation.doc_name}</span>
+        <span className="citation-popup-score">相关度 {Math.round(citation.score * 100)}%</span>
+      </div>
+      <div className="citation-popup-text">{citation.text}</div>
+    </div>,
+    document.body,
+  )
+}
+
+function CitationTag({ citation, index }: { citation: Citation; index: number }) {
+  const [show, setShow] = useState(false)
+  const [rect, setRect] = useState<DOMRect | null>(null)
+  const tagRef = useRef<HTMLSpanElement>(null)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const cancelHide = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+  }
+  const scheduleHide = () => {
+    hideTimer.current = setTimeout(() => setShow(false), 150)
+  }
+
+  const handleTagEnter = () => {
+    cancelHide()
+    if (tagRef.current) setRect(tagRef.current.getBoundingClientRect())
+    setShow(true)
+  }
+
+  return (
+    <>
+      <span
+        ref={tagRef}
+        className="citation-tag"
+        onMouseEnter={handleTagEnter}
+        onMouseLeave={scheduleHide}
+      >
+        {index + 1}
+      </span>
+      {show && rect && (
+        <CitationPopup
+          citation={citation}
+          index={index}
+          anchorRect={rect}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
+        />
+      )}
+    </>
+  )
+}
+
+function parseContent(content: string, citations: Citation[]): React.ReactNode[] {
+  if (citations.length === 0) return [content]
+  const parts: React.ReactNode[] = []
+  const regex = /\[(\d+)\]/g
+  let last = 0
+  let match: RegExpExecArray | null
+  let hasAny = false
+
+  while ((match = regex.exec(content)) !== null) {
+    const num = parseInt(match[1], 10)
+    const citation = citations[num - 1]
+    if (!citation) continue
+    hasAny = true
+    if (match.index > last) parts.push(content.slice(last, match.index))
+    parts.push(<CitationTag key={match.index} citation={citation} index={num - 1} />)
+    last = match.index + match[0].length
+  }
+
+  if (!hasAny) return [content]
+  if (last < content.length) parts.push(content.slice(last))
+  return parts
+}
+
 function MessageBubble({ role, content, citations, streaming }: {
   role: 'user' | 'assistant'
   content: string
   citations: string | null
   streaming?: boolean
 }) {
-  const isUser = role === 'user'
   const parsedCitations: Citation[] = citations ? JSON.parse(citations) : []
+  const nodes = parseContent(content, parsedCitations)
 
   return (
     <div className={`chat-row ${role}`}>
       <div className={`chat-bubble ${role}`}>
-        {content}
+        {nodes}
         {streaming && <span className="chat-cursor">▌</span>}
-        {parsedCitations.length > 0 && (
-          <div className="chat-citations">
-            <span className="chat-citations-label">来源：</span>
-            {parsedCitations.map((c, i) => (
-              <span key={i} className="tag tag-default" style={{ fontSize: 11 }}>{c.doc_name}</span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

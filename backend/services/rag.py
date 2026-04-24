@@ -14,7 +14,7 @@ from core.config import settings
 
 SYSTEM_PROMPT = """你是一个专业的文档分析助手。请严格基于以下文档内容回答用户问题，不要编造文档中没有的内容。
 如果文档中没有相关信息，请直接说明"文档中未提及此内容"。
-回答时请引用具体来源文档名称。"""
+回答时必须在相关陈述后用 [1]、[2] 等编号标注引用来源，编号对应"文档内容"中每段内容的序号。"""
 
 
 async def rag_stream(
@@ -30,9 +30,9 @@ async def rag_stream(
         yield "文档中未找到相关内容，请尝试换个问法或检查文档是否已解析完成。", []
         return
 
-    # 2. 构建 context
+    # 2. 构建 context（带序号，与回答中的 [N] 对应；用完整 chunk 而非截断的 citation text）
     context = "\n\n---\n\n".join(
-        f"[来源：{c['doc_name']}]\n{c['text']}" for c in citations
+        f"[{i+1}] 来源：{c['doc_name']}\n{chunk}" for i, (c, chunk) in enumerate(zip(citations, chunks))
     )
 
     messages = [
@@ -87,7 +87,7 @@ def _retrieve(question: str, notebook_id: int, doc_ids: list[int] | None) -> tup
             "doc_id": doc.metadata.get("doc_id"),
             "doc_name": doc.metadata.get("doc_name"),
             "chunk_index": doc.metadata.get("chunk_index"),
-            "text": doc.page_content[:200],
-            "score": round(float(score), 4),
+            "text": doc.page_content,
+            "score": round(1 / (1 + float(score)), 4),
         })
     return chunks, citations
