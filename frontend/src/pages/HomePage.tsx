@@ -1,38 +1,44 @@
-import { useEffect } from 'react'
-import { Button, Card, Input, Modal, Typography, Empty, Spin, message } from 'antd'
-import { PlusOutlined, BookOutlined, DeleteOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAppStore } from '../store/useAppStore'
 
-const { Title, Text } = Typography
-
 export default function HomePage() {
   const navigate = useNavigate()
   const { notebooks, setNotebooks } = useAppStore()
+  const [showModal, setShowModal] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     api.getNotebooks().then(setNotebooks).catch(console.error)
   }, [])
 
-  const handleCreate = () => {
-    Modal.confirm({
-      title: '新建笔记本',
-      content: <Input id="nb-name-input" placeholder="笔记本名称" />,
-      onOk: async () => {
-        const name = (document.getElementById('nb-name-input') as HTMLInputElement).value.trim()
-        if (!name) return
-        const nb = await api.createNotebook({ name })
-        setNotebooks([nb, ...notebooks])
-      },
-    })
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  const handleCreate = async () => {
+    const name = newName.trim()
+    if (!name) return
+    setCreating(true)
+    try {
+      const nb = await api.createNotebook({ name })
+      setNotebooks([nb, ...notebooks])
+      setShowModal(false)
+      setNewName('')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
     await api.deleteNotebook(id)
     setNotebooks(notebooks.filter((n) => n.id !== id))
-    message.success('已删除')
+    showToast('已删除')
   }
 
   const handleShare = async (id: number, e: React.MouseEvent) => {
@@ -40,43 +46,102 @@ export default function HomePage() {
     const nb = await api.shareNotebook(id)
     const url = `${window.location.origin}/shared/${nb.share_token}`
     await navigator.clipboard.writeText(url)
-    message.success('分享链接已复制到剪贴板')
+    showToast('分享链接已复制')
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '40px auto', padding: '0 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <Title level={2} style={{ margin: 0 }}>我的笔记本</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新建笔记本</Button>
+    <div style={{ flex: 1 }}>
+      <div className="home-container">
+        <div className="home-header">
+          <h1 className="home-title">我的笔记本</h1>
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            创建笔记本
+          </button>
+        </div>
+
+        {notebooks.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📓</div>
+            <div className="empty-state-text">还没有笔记本，点击右上角新建一个吧</div>
+          </div>
+        ) : (
+          <div className="notebook-grid">
+            {notebooks.map((nb) => (
+              <div
+                key={nb.id}
+                className="notebook-card"
+                onClick={() => navigate(`/notebook/${nb.id}`)}
+              >
+                <div className="notebook-card-icon">📚</div>
+                <div className="notebook-card-title">{nb.name}</div>
+                <div className="notebook-card-desc">{nb.description || '暂无描述'}</div>
+                <div className="notebook-card-footer">
+                  <span className="notebook-card-meta">{nb.doc_count} 个文档</span>
+                  <div className="notebook-card-actions">
+                    <button
+                      className="btn-icon"
+                      title="分享"
+                      onClick={(e) => handleShare(nb.id, e)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                      </svg>
+                    </button>
+                    <button
+                      className="btn-icon"
+                      title="删除"
+                      onClick={(e) => handleDelete(nb.id, e)}
+                      style={{ color: 'var(--danger)' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {notebooks.length === 0 ? (
-        <Empty description="还没有笔记本，点击右上角新建一个吧" />
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-          {notebooks.map((nb) => (
-            <Card
-              key={nb.id}
-              hoverable
-              onClick={() => navigate(`/notebook/${nb.id}`)}
-              actions={[
-                <ShareAltOutlined key="share" onClick={(e) => handleShare(nb.id, e)} title="分享" />,
-                <DeleteOutlined key="delete" onClick={(e) => handleDelete(nb.id, e)} title="删除" />,
-              ]}
-            >
-              <Card.Meta
-                avatar={<BookOutlined style={{ fontSize: 24, color: '#1677ff' }} />}
-                title={nb.name}
-                description={
-                  <>
-                    <Text type="secondary">{nb.description || '暂无描述'}</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>{nb.doc_count} 个文档</Text>
-                  </>
-                }
-              />
-            </Card>
-          ))}
+      {/* Create modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h2 className="modal-title">新建笔记本</h2>
+            <input
+              className="input"
+              placeholder="笔记本名称"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => { setShowModal(false); setNewName('') }}>取消</button>
+              <button className="btn btn-primary" disabled={!newName.trim() || creating} onClick={handleCreate}>
+                {creating ? '创建中…' : '创建'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: '#1a1a1a', color: '#fff', padding: '10px 20px',
+          borderRadius: 'var(--radius-pill)', fontSize: 13, zIndex: 2000,
+          boxShadow: 'var(--shadow-md)', pointerEvents: 'none',
+        }}>
+          {toast}
         </div>
       )}
     </div>
