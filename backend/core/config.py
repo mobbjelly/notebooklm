@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     CHAT_DAILY_LIMIT: int = 50
 
+    CORS_ORIGINS: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
