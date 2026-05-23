@@ -648,7 +648,7 @@ textarea.input { resize: none; line-height: 1.5; }
   padding-bottom: 20px;
 }
 .report-header h1 { font-size: 24px; margin-bottom: 12px; color: var(--text-primary); }
-.report-header .report-rich-text { color: var(--text-secondary); }
+.report-header .report-markdown { color: var(--text-secondary); }
 .report-sections { display: flex; flex-direction: column; gap: 20px; }
 .report-section h3,
 .report-lists h3 {
@@ -656,35 +656,46 @@ textarea.input { resize: none; line-height: 1.5; }
   color: var(--text-primary);
   margin-bottom: 8px;
 }
-.report-rich-text { display: flex; flex-direction: column; gap: 12px; color: var(--text-primary); }
-.report-rich-text p { margin: 0; line-height: 1.8; white-space: pre-wrap; }
-.report-code-block {
-  position: relative;
-  margin: 2px 0;
-  padding: 34px 16px 14px;
+.report-markdown { color: var(--text-primary); line-height: 1.8; }
+.report-markdown > *:first-child { margin-top: 0; }
+.report-markdown > *:last-child { margin-bottom: 0; }
+.report-markdown p { margin: 0 0 12px; }
+.report-markdown ul,
+.report-markdown ol { margin: 0 0 12px; padding-left: 22px; }
+.report-markdown pre {
+  margin: 12px 0;
+  padding: 14px 16px;
   background: #1f2937;
-  color: #f8fafc;
+  color: #e5e7eb;
   border-radius: var(--radius-sm);
   overflow-x: auto;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-  font-size: 13px;
   line-height: 1.6;
+}
+.report-markdown pre code {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
   white-space: pre;
 }
-.report-code-block code { font-family: inherit; }
-.code-keyword { color: #93c5fd; }
-.code-string { color: #86efac; }
-.code-number { color: #fcd34d; }
-.code-comment { color: #94a3b8; font-style: italic; }
-.report-code-lang {
-  position: absolute;
-  top: 8px;
-  left: 14px;
-  color: #9ca3af;
-  font-size: 12px;
-  text-transform: uppercase;
+.report-markdown pre code.hljs,
+.report-markdown pre .hljs {
+  color: #e5e7eb;
+  background: transparent;
 }
-.report-inline-code {
+.report-markdown .hljs-keyword,
+.report-markdown .hljs-built_in,
+.report-markdown .hljs-literal { color: #f87171; }
+.report-markdown .hljs-title,
+.report-markdown .hljs-function .hljs-title { color: #c084fc; }
+.report-markdown .hljs-string { color: #93c5fd; }
+.report-markdown .hljs-number { color: #60a5fa; }
+.report-markdown .hljs-comment { color: #9ca3af; }
+.report-markdown .hljs-params,
+.report-markdown .hljs-variable,
+.report-markdown .hljs-property,
+.report-markdown .hljs-attr { color: #e5e7eb; }
+.report-markdown code {
   background: var(--surface-hover);
   border: 1px solid var(--border-light);
   border-radius: 5px;
