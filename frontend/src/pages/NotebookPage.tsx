@@ -4,13 +4,13 @@ import { api } from '../api/client'
 import { useAppStore } from '../store/useAppStore'
 import DocumentPanel from '../components/document/DocumentPanel'
 import ChatPanel from '../components/chat/ChatPanel'
-import AnalysisPanel from '../components/notebook/AnalysisPanel'
+import ReportPanel from '../components/notebook/ReportPanel'
 
 export default function NotebookPage() {
   const { id } = useParams<{ id: string }>()
   const notebookId = Number(id)
   const { setDocuments, setMessages, setActiveNotebook, setAllDocsSelected, notebooks } = useAppStore()
-  const [activeTab, setActiveTab] = useState<'chat' | 'analysis'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'report'>('chat')
 
   useEffect(() => {
     const nb = notebooks.find((n) => n.id === notebookId)
@@ -45,16 +45,16 @@ export default function NotebookPage() {
             AI 对话
           </div>
           <div
-            className={`nb-tab${activeTab === 'analysis' ? ' active' : ''}`}
-            onClick={() => setActiveTab('analysis')}
+            className={`nb-tab${activeTab === 'report' ? ' active' : ''}`}
+            onClick={() => setActiveTab('report')}
           >
-            关联分析
+            生成报告
           </div>
         </nav>
         <div className="nb-panel">
           {activeTab === 'chat'
             ? <ChatPanel notebookId={notebookId} />
-            : <AnalysisPanel notebookId={notebookId} />
+            : <ReportPanel notebookId={notebookId} />
           }
         </div>
       </div>

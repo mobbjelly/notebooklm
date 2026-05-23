@@ -69,6 +69,14 @@ export const api = {
     request<{ result: AnalysisResult | null }>(`/notebooks/${notebookId}/analysis`),
   triggerAnalysis: (notebookId: number) =>
     request<{ result: AnalysisResult }>(`/notebooks/${notebookId}/analysis`, { method: 'POST' }),
+
+  // Report
+  getReport: (notebookId: number) =>
+    request<ReportState>(`/notebooks/${notebookId}/report`),
+  triggerReport: (notebookId: number) =>
+    request<ReportState>(`/notebooks/${notebookId}/report`, { method: 'POST' }),
+  cancelReport: (notebookId: number) =>
+    request<ReportState>(`/notebooks/${notebookId}/report/cancel`, { method: 'POST' }),
 }
 
 // SSE 流式聊天
@@ -156,4 +164,25 @@ export interface AnalysisResult {
   differences: string[]
   blind_spots: string[]
   synthesis: string
+}
+
+export interface ReportSection {
+  heading: string
+  content: string
+}
+
+export interface ReportResult {
+  title: string
+  executive_summary: string
+  sections: ReportSection[]
+  key_takeaways: string[]
+  next_steps: string[]
+}
+
+export type ReportStatus = 'idle' | 'generating' | 'ready' | 'failed'
+
+export interface ReportState {
+  status: ReportStatus
+  result: ReportResult | null
+  error: string | null
 }

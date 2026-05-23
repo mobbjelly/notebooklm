@@ -3,12 +3,8 @@
 """
 import json
 import asyncio
-from pathlib import Path
 
-import httpx
-from readability import Document as ReadabilityDoc
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import Docx2txtLoader, TextLoader
 from langchain_chroma import Chroma
 from langchain_community.embeddings import DashScopeEmbeddings
 
@@ -16,6 +12,7 @@ from core.config import settings
 from core.database import AsyncSessionLocal
 from models.document import Document, DocumentStatus
 from services.summary import generate_summary_and_notes
+from services.text_extraction import extract_document_text
 
 
 async def ingest_document(doc_id: int):
@@ -28,7 +25,7 @@ async def ingest_document(doc_id: int):
             doc.status = DocumentStatus.processing
             await db.commit()
 
-            text = await _extract_text(doc)
+            text = await extract_document_text(doc)
             chunks = _split_text(text)
             await _store_vectors(chunks, doc)
 
@@ -51,53 +48,6 @@ async def _run_summary(doc_id: int):
         if doc:
             await generate_summary_and_notes(doc, db)
             await db.commit()
-
-
-async def _extract_text(doc: Document) -> str:
-    if doc.doc_type == "url":
-        return await _fetch_url(doc.source_url)
-    path = doc.storage_path
-    if doc.doc_type == "pdf":
-        return _extract_pdf(path)
-    if doc.doc_type == "docx":
-        loader = Docx2txtLoader(path)
-        return loader.load()[0].page_content
-    # txt / md
-    loader = TextLoader(path, encoding="utf-8")
-    return loader.load()[0].page_content
-
-
-def _extract_pdf(path: str) -> str:
-    import fitz  # pymupdf
-    parts = []
-    with fitz.open(path) as pdf:
-        for page in pdf:
-            # 普通文本块，保留换行结构
-            parts.append(page.get_text("text"))
-            # 将页内表格转为 Markdown
-            for table in page.find_tables():
-                rows = table.extract()
-                if not rows:
-                    continue
-                header = "| " + " | ".join(str(c or "") for c in rows[0]) + " |"
-                sep = "| " + " | ".join("---" for _ in rows[0]) + " |"
-                body = "\n".join(
-                    "| " + " | ".join(str(c or "") for c in row) + " |"
-                    for row in rows[1:]
-                )
-                parts.append(f"\n{header}\n{sep}\n{body}\n")
-    return "\n".join(parts)
-
-
-async def _fetch_url(url: str) -> str:
-    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-        resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-    doc = ReadabilityDoc(resp.text)
-    # readability 返回 HTML，简单去标签
-    import re
-    text = re.sub(r"<[^>]+>", " ", doc.summary())
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def _split_text(text: str) -> list[str]:

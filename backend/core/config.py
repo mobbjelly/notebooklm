@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     CHROMA_DIR: Path = BASE_DIR / "data" / "chroma"
+    LOG_DIR: Path = BASE_DIR / "data" / "logs"
 
     DASHSCOPE_API_KEY: str = ""
     LLM_MODEL: str = "qwen-long"
@@ -22,6 +23,7 @@ class Settings(BaseSettings):
     RAG_TOP_K: int = 8
 
     CHAT_DAILY_LIMIT: int = 50
+    REPORT_GENERATION_TIMEOUT_SECONDS: int = 180
 
     CORS_ORIGINS: str = "http://localhost:3000"
 
@@ -34,3 +36,4 @@ settings = Settings()
 
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 settings.CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+settings.LOG_DIR.mkdir(parents=True, exist_ok=True)

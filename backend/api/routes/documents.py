@@ -28,7 +28,7 @@ async def list_documents(
     client_id: str = Depends(get_client_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await _assert_owns_notebook(notebook_id, client_id, db)
+    nb = await _get_owned_notebook(notebook_id, client_id, db)
     result = await db.execute(
         select(Document).where(Document.notebook_id == notebook_id).order_by(Document.created_at.desc())
     )
@@ -63,6 +63,7 @@ async def upload_file(
         status=DocumentStatus.pending,
     )
     db.add(doc)
+    _invalidate_report(nb)
     await db.commit()
     await db.refresh(doc)
 
@@ -78,7 +79,7 @@ async def add_url(
     client_id: str = Depends(get_client_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await _assert_owns_notebook(notebook_id, client_id, db)
+    nb = await _get_owned_notebook(notebook_id, client_id, db)
 
     name = body.name or str(body.url).split("/")[-1] or "webpage"
     doc = Document(
@@ -89,6 +90,7 @@ async def add_url(
         status=DocumentStatus.pending,
     )
     db.add(doc)
+    _invalidate_report(nb)
     await db.commit()
     await db.refresh(doc)
 
@@ -103,12 +105,13 @@ async def delete_document(
     client_id: str = Depends(get_client_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await _assert_owns_notebook(notebook_id, client_id, db)
+    nb = await _get_owned_notebook(notebook_id, client_id, db)
     doc = await _get_doc(doc_id, notebook_id, db)
     if doc.storage_path:
         Path(doc.storage_path).unlink(missing_ok=True)
     await asyncio.to_thread(delete_document_vectors, doc.id, doc.notebook_id)
     await db.delete(doc)
+    _invalidate_report(nb)
     await db.commit()
 
 
@@ -129,9 +132,20 @@ async def update_notes(
 
 
 async def _assert_owns_notebook(notebook_id: int, client_id: str, db: AsyncSession):
+    await _get_owned_notebook(notebook_id, client_id, db)
+
+
+async def _get_owned_notebook(notebook_id: int, client_id: str, db: AsyncSession) -> Notebook:
     nb = await db.scalar(select(Notebook).where(Notebook.id == notebook_id, Notebook.client_id == client_id))
     if not nb:
         raise HTTPException(status_code=404, detail="Notebook not found")
+    return nb
+
+
+def _invalidate_report(nb: Notebook):
+    nb.report_cache = None
+    nb.report_status = "idle"
+    nb.report_error = None
 
 
 async def _get_doc(doc_id: int, notebook_id: int, db: AsyncSession) -> Document:

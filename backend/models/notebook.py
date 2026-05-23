@@ -13,6 +13,9 @@ class Notebook(Base):
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     analysis_cache: Mapped[str | None] = mapped_column(Text)          # JSON
+    report_cache: Mapped[str | None] = mapped_column(Text)            # JSON
+    report_status: Mapped[str] = mapped_column(String(20), default="idle")
+    report_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

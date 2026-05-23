@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 
 from core.config import settings
 from core.database import init_db
+from core.logging import configure_logging
 from api import router
+
+configure_logging()
 
 
 @asynccontextmanager
