@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     CHROMA_DIR: Path = BASE_DIR / "data" / "chroma"
     LOG_DIR: Path = BASE_DIR / "data" / "logs"
+    MAX_UPLOAD_SIZE_MB: int = 50
 
     DASHSCOPE_API_KEY: str = ""
     LLM_MODEL: str = "qwen-long"

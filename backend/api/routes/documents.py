@@ -22,6 +22,10 @@ ALLOWED_TYPES = {
 }
 
 
+def _max_upload_bytes() -> int:
+    return settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+
 @router.get("", response_model=list[DocumentOut])
 async def list_documents(
     notebook_id: int,
@@ -43,16 +47,28 @@ async def upload_file(
     client_id: str = Depends(get_client_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await _assert_owns_notebook(notebook_id, client_id, db)
+    nb = await _get_owned_notebook(notebook_id, client_id, db)
 
     doc_type = ALLOWED_TYPES.get(file.content_type)
     if not doc_type:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
+    content_length = file.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > _max_upload_bytes():
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum upload size is {settings.MAX_UPLOAD_SIZE_MB}MB",
+        )
+
     save_dir = settings.UPLOAD_DIR / str(notebook_id)
     save_dir.mkdir(parents=True, exist_ok=True)
     save_path = save_dir / file.filename
     content = await file.read()
+    if len(content) > _max_upload_bytes():
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum upload size is {settings.MAX_UPLOAD_SIZE_MB}MB",
+        )
     save_path.write_bytes(content)
 
     doc = Document(

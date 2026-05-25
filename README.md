@@ -104,6 +104,9 @@ npm run dev
 | `CHUNK_SIZE` | 文本分块大小（tokens） | `512` |
 | `RAG_TOP_K` | 检索返回的最大文档块数 | `8` |
 | `CHAT_DAILY_LIMIT` | 每用户每日问答次数限制 | `50` |
+| `MAX_UPLOAD_SIZE_MB` | 单个上传文档大小上限 | `50` |
+
+Docker 部署时，前端 Nginx 同样限制单次请求体大小，默认与后端保持一致为 `50m`。如果需要上传更大的文档，请同时调整 `backend/.env` 中的 `MAX_UPLOAD_SIZE_MB` 和 `frontend/nginx.conf` 中的 `client_max_body_size`，然后重新构建并启动容器。
 
 ## API 文档
 
