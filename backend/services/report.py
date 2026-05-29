@@ -21,7 +21,10 @@ async def create_notebook_report(docs: list[Document]) -> dict:
 async def _attach_report_excerpts(docs: list[Document]) -> list[Document]:
     report_docs = []
     for doc in docs:
-        text = await extract_document_text(doc)
+        try:
+            text = await extract_document_text(doc)
+        except Exception:
+            text = ""
         if text:
             doc._report_excerpt = text[:6000]
         if text or doc.summary_text or doc.key_points or doc.user_notes:

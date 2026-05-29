@@ -93,6 +93,12 @@ def _ensure_task_running(client_id: str, notebook_id: int):
     _running_tasks[task_key] = asyncio.create_task(_run_report_task(client_id, notebook_id, task_key))
 
 
+def cancel_running_report(client_id: str, notebook_id: int):
+    task = _running_tasks.get((client_id, notebook_id))
+    if task and not task.done():
+        task.cancel()
+
+
 async def _run_report_task(client_id: str, notebook_id: int, task_key: tuple[str, int]):
     try:
         async with AsyncSessionLocal() as db:

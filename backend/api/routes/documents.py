@@ -10,6 +10,7 @@ from core.config import settings
 from models.notebook import Notebook
 from models.document import Document, DocumentStatus
 from schemas.document import DocumentUrlCreate, DocumentNotesUpdate, DocumentOut
+from api.routes.reports import cancel_running_report
 from services.ingestion import ingest_document, delete_document_vectors
 
 router = APIRouter(prefix="/notebooks/{notebook_id}/documents", tags=["documents"])
@@ -79,6 +80,7 @@ async def upload_file(
         status=DocumentStatus.pending,
     )
     db.add(doc)
+    cancel_running_report(client_id, notebook_id)
     _invalidate_report(nb)
     await db.commit()
     await db.refresh(doc)
@@ -106,6 +108,7 @@ async def add_url(
         status=DocumentStatus.pending,
     )
     db.add(doc)
+    cancel_running_report(client_id, notebook_id)
     _invalidate_report(nb)
     await db.commit()
     await db.refresh(doc)
@@ -127,6 +130,7 @@ async def delete_document(
         Path(doc.storage_path).unlink(missing_ok=True)
     await asyncio.to_thread(delete_document_vectors, doc.id, doc.notebook_id)
     await db.delete(doc)
+    cancel_running_report(client_id, notebook_id)
     _invalidate_report(nb)
     await db.commit()
 
@@ -142,6 +146,7 @@ async def update_notes(
     await _assert_owns_notebook(notebook_id, client_id, db)
     doc = await _get_doc(doc_id, notebook_id, db)
     doc.user_notes = body.user_notes
+    cancel_running_report(client_id, notebook_id)
     await db.commit()
     await db.refresh(doc)
     return DocumentOut.model_validate(doc)
